@@ -103,4 +103,8 @@ row format delimited
 fields terminated by ','
 stored as textfile ;
 
+25. To add partition on exeisting table:
+	alter table tbale_name ADD PARTITION (column_name = value,column_name = value,...)
+	
 
+Refer: https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL#LanguageManualDDL-AddPartitions
