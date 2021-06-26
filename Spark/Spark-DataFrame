@@ -1,0 +1,13 @@
+1. Create Dataframe: orderItems = spark.read.json("path")
+2. Dataframe is RDD with Structure/schema.
+3. To check the data type: type(orderItems)
+4. Filter: orderItems.filter("order_item_order_id" == 2).show()
+5. Groupby: orderItems.groupby("order_item_order_id").sum()
+6. orderItems.filter("order_item_order_id" == 2).select(sum(col("order_item_subtotal")))
+
+7. Spark 1.6
+    Spark sql and dataframe , Machine Learning and Spark Streaming are on top of (or internally use) Spark Core: Transfomartion and actions
+8.Spark 2 onwards: 
+    Spark sql and dataframe and Spark Core: Transfomartion and actions become core and
+    Machine Learning and Spark Streaming (Spark Structured Streaming) and GraphX are internally use them for execution.   
+    
