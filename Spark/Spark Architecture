@@ -1,0 +1,20 @@
+1. We have a clusture of 11 nodes 
+ 6 are worker nodes
+ 3 are master nodes
+ 3 are gatewaynotes
+2. Spark is nothing but buch of jar files present on each node.
+3. Spart files is present at " cd /usr/hdp/2.5.0.0-1245(gateway note ip and port)/spark ....and in this there ia lib folder
+4. clusture configuration is present at : cd /etc/spark2/conf
+      spark-env.sh contains:  executer instance, executer memory etc.
+      spark-defaults.conf
+ 5. pyspark --master yarn -conf spar.ui.port=12901 --num-executer=2 --conf spark.dynamicAllocation.enbaled=false
+ 
+ Word Count program:
+     lines = sc.textFile("path/file_name")
+     words = lines.flatMap(lambda line: line.split(" "))
+     wordTuples = words.map(lambda word: (word,1))
+     wordCounts = wordTuples.reducebyKey(lambda x, y: x+y)
+     sc.setLogLevel("INFO")
+     wordCounts.saveAsTextFile("path")
+     
+  
