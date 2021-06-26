@@ -1,0 +1,16 @@
+This file will containt the Spark Context demo:
+
+ 1. To start the spark in yarn mode: pyspark --master yarn --conf spark.ui.port=129001 --num-executers 2
+  
+ 2. bydefaut a spark context object is creates sc 
+ 3. To read text file using sc: 
+      help(sc.textFile)
+      orderItems = sc.textFile("HDFS locaion OR oter location like s3 to which spark is connected")
+      here orderItems is RDD: type(orderItems)
+      RDD are similar to List but difference is the RDD are distributed where as List is Linear collection.
+ 4. To view data of RDD: orderItems.take(10)
+ 5. to view all the API available for RDD: help(orderItems)
+ 6. Filter: orderItems.filter(lambda oi: int(oi.split(',')[1]) == 2)    
+ 7. Map: orderItems.map(lambda oi: float(oi.split(',')[4])) 
+ 8. Reduce: orderItems.reduce(labda x, y: x + y ) 
+ 9. To get help in API: help(orderItems.map)
