@@ -73,4 +73,7 @@ Sum of even numbers program :
      
 topNPricesProductsByCategory = productsGBCategory.flatMap(lambda p : getTopNPricesProducts(list(p[1]),4))
 
-map, filter,functools.reduce, itertools.takewhile,itertools.chain, pandas ....need to explor
+map, filter,functools.reduce, itertools.takewhile,itertools.chain, pandas ....need to explore
+
+
+
