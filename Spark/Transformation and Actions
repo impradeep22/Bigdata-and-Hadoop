@@ -48,3 +48,29 @@ Sum of even numbers program :
  sortByKey(): Use to sort the data. Bydefault data will be sorted in accesending order on Key (K,V)
  RDD.sortByKey()
  RDD.sortByKey(False) # To sort in decending order
+ 
+ mapPartitions():  It is efficent than map() beacuse it process that one pattion data a data intstead of reading the data row by row just like in case of map function.
+                   Beacuse of this it reduce the time for each db connection and reduce the overall execution time.
+                   lines.mapPartitions(lambda i : getWordTuples(i)) # here i is of iterable data. 
+                   
+                   getWordTuples(i):
+                      import itertools as it
+                      wordTuples =  map(lambda s: (s,1), it.chain.from_iterable(map(lambda s: s.split(" "),i)))
+                      return wordTuples
+                      
+ To get top N products by pricecategory:
+ 
+ products = sc.textFile("path")
+ productsFiltered = products.filter(lambda p: p.split(",")[4] != "")
+ productsMap = productsFiltered.map(lambda p: int(p.split(",")[1]), p)
+ productsGBCategory = productsMap.groupBy()
+
+ def getTopNPricesProducts(products,topN):
+     import itertools as it
+     productPrices = sorted(set(map(lambda p: float(p.split(",")[4]), products)),reverse =  True)[:topN]
+     productSorted = sorted(products, key=lambda p: float(p.split(",")[4]), reverse =  True)
+     return it.takeWhile(lambda p: float(p.split(",")[4]) in productPrices, productSorted)
+     
+topNPricesProductsByCategory = productsGBCategory.flatMap(lambda p : getTopNPricesProducts(list(p[1]),4))
+
+map, filter,functools.reduce, itertools.takewhile,itertools.chain, pandas ....need to explor
