@@ -1,0 +1,52 @@
+Sum of even numbers program :
+ l = list(range(1,100001)) # this is list
+ type(l)
+ len(l)
+ help(sc.parallelize) #parallelize convert collections in to RDD.
+ lRDD = sc.parallelize()
+ type(lRDD)
+ lRDD.count() ### Actions # get the length of RDD
+ lRDD.first() ### Actions  # return first  row
+ lRDD.take(10) ### Actions  # return 10  row
+ lRDD.collect() ## convert RDD into collections ## this is not recomnded to use beacuase it take more time and memory
+ 
+ lEVEN = lRDD.filter(lambda x : x % 2 == 0)
+ type(lEVEN)
+ lEVEN.count()
+ lEVEN.reduce(lambda x,y: x+y) 
+ # minimum   lEVEN.reduce(lambda x,y: x if (x<y) else y) 
+  # max   lEVEN.reduce(lambda x,y: x if (x>y) else y) 
+   OR
+  alternate for reduce lambda fuction:
+  from operator import add
+  lEVEN.reduce(add)
+  
+  Word count program:
+  
+ lines = sc.textFile("path")
+ ## flatMap() ## it is used to when  desired output record is greater than input record 
+ ## Map() ## it is used to when  desired output record is equal to input record
+ words = lines.flatMap(lambda w: w.split(" ") )
+ words.count()
+ wordTuple = words.map(lambda w: (w, 1))
+ wordCount = wordTuple.reduceByKey(add)
+ wordCount.count()
+ for i in wordCount.take(10): print(i)
+ 
+ groupByKey: take the input data in the form of tuple and group the data baed on key and retun the output as tuple (key, [it of value])
+ reduceByKey: 
+ aggregateByKey:
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
