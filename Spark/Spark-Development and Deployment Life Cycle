@@ -1,0 +1,88 @@
+=================main/resources/application.properties================
+[dev]
+executionMode = local
+input.base.dir = /User/itversity/Research/data/retail_db
+output.base.dir = /User/itversity/Research/data/bootcamp/pyspark
+
+[prod]
+executionMode = yarn-client
+input.base.dir = /public/retail_db
+output.base.dir = /user/training/bootcamp/pyspark
+
+===================main/python/wordCount.py===============
+from pyspark import SparkConf, SparkContext
+import ConfigParser as cp
+import sys
+
+props = cp.RawConfigParser()
+props.read("src/main/resources/application.properties")
+envProps = sys.argv[1]
+
+conf = SparkConf().\
+      setMaster(props.get(env,'executionMode')).\
+      setAppName("Daily Revenue")
+      #set("conf.ui.port","12901")
+
+sc = SparkContext(conf=conf)
+
+ lines = sc.textFile(props.get(env,'input.base.dir') + "/file_name")
+ words = lines.flatMap(lambda line: line.split(" "))
+ wordTuples = words.map(lambda word: (word,1))
+ WordCounts = wordTuples.reducebyKey(lambda x, y: x+y)
+ sc.setLogLevel("INFO")
+ wordCounts.saveAsTextFile(props.get(env,'output.base.dir') + "/file_name")
+ 
+ ============================================================================================================================
+ ======deployment section======
+ --copy files from local to gateway node
+ scp -r bootcamppyspark <gatway node host name (username@itversity.com:~)>
+ 
+ spark-submit --mstar yarn \
+ --deploy-mode client \
+ --conf spark.ui.port=12901 \
+ --conf spark.dynamicAllocation.enabled=False \
+ src/main/python/retail_db/DailyRevenue.py prod 
+ 
+  spark-submit --mstar yarn \
+ --deploy-mode client \
+ --conf spark.ui.port=12901 \
+ --conf spark.dynamicAllocation.enabled=False \
+ --num-executers 1\
+ --executor-memory 512M \
+ --executor-cores 1 \
+ src/main/python/retail_db/DailyRevenue.py prod 
+ 
+ 
+ ============================================================================================================================================================
+ ===================main/python/wordCount.py===============
+from pyspark import SparkConf, SparkContext
+import sys
+envProps = sys.argv[1]
+
+conf = SparkConf().\
+      setMaster(sys.argv[1]).\
+      setAppName("Daily Revenue")
+      #set("conf.ui.port","12901")
+
+sc = SparkContext(conf=conf)
+
+ lines = sc.textFile(sys.argv[2])
+ words = lines.flatMap(lambda line: line.split(" "))
+ wordTuples = words.map(lambda word: (word,1))
+ WordCounts = wordTuples.reducebyKey(lambda x, y: x+y)
+ sc.setLogLevel("INFO")
+ wordCounts.saveAsTextFile(sys.argv[3])
+ 
+ ----execution:-----
+ spark-submit --mstar yarn \
+ --deploy-mode client \
+ --conf spark.ui.port=12901 \
+ --conf spark.dynamicAllocation.enabled=False \
+ --num-executers 10 \
+ --executor-memory 1536M \
+ --executor-cores 2 \
+ src/main/python/retail_db/wordCount.py yarn-client /public/rendomtextwriter /user/training/bootcamp/pyspark/wordCount010 
+ 
+ 
+ 
+ 
