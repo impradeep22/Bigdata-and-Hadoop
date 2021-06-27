@@ -34,19 +34,17 @@ Sum of even numbers program :
  for i in wordCount.take(10): print(i)
  
  groupByKey: take the input data in the form of tuple and group the data baed on key and retun the output as tuple (key, [it of value])
- reduceByKey: 
- aggregateByKey:
+ reduceByKey: take the input data in the form of tuple and a lambda function 
+ aggregateByKey: take the input data in the form of tuple and two lambda function 
  
+ distinct(): will you give you distinct values : orderr.map(lambda x: x.split(',')[3]).distinct().collect()
+ lambda fucntion login should in pure python.
  
+ takeSample(True, 10):  it will give you 10 random records.
  
+ Join(): it takes input in the form of tuple and then output in the for of tuple
+ targetRDD = firstRDD.join(secondRDD) ##firstRDD  = (k,v), secondRDD  = (k,w), targetRDD  = (k,(v,w))
  
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+ sortByKey(): Use to sort the data. Bydefault data will be sorted in accesending order on Key (K,V)
+ RDD.sortByKey()
+ RDD.sortByKey(False) # To sort in decending order
