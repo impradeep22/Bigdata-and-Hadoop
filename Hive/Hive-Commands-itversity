@@ -1,0 +1,180 @@
+Hive ---Itversity Videos:
+
+1. Lecture one:
+	to run command directly without launching hive shell, use "hive -e "sql_query;"
+	
+	a. use of set: This is used to overwrite the existing hive properties.
+		command : hive -e "set;"| grep print
+		to change show the defualt database bse which I am wordking:
+		
+		hive> set hive.cli.print.current.db=true; //
+		
+
+Hive metestore: It store the only metatda of tables and store that metadata in the mysql/other RDBMS. Hive to refer for hive-site.xml under /etc/hive/conf.
+
+log location is present in : hive-log4j.properties
+
+To know default hive storage (data storage): set hive.metastore.warehouse.dir
+
+dfs is sort form of hadoop fs
+
+cd tmp/username
+
+=====================================
+Logging in hive:
+
+log location is present in : hive-log4j.properties under folder : /etc/hive/conf
+
+command to change the log location at runtime: hive -hiveconf hive.log.dir=/home/pradeep/hivelog (These changes are at session level)
+hive.log.file = hive.log
+
+we can set the change in properties at user level: (homelocation) vi .hiverc
+
+=======================================================
+show create table table_name; ==> This is will generate the create table statment.
+
+==================================
+to check medata in the HDFS system: hdfs fsck "hedf_folder_location" -files -locations -blocks
+
+==================
+use of overwrite in load command: OVERWRITE will delete the existing data and then load new data in it.
+
+load data inpath "hdfs_path" overwrite into table table_name;--this will move the existing data from source hdfs_path to target hdfs_path.
+
+===================================
+load will be used when we have laod the file from HDFS or local into hive. and this efficent than insert.
+insert will be used when we have to to transformation on the data like partition or bucking or getting some valiuable informations.
+
+delete or update is possible only incase of ORC file formate.
+
+How to knoe what are the compress present on the setup.
+answer:
+1. core-site.xml file present in the location /etc/hdfc/conf conatains ths data compression.codec
+2. hive -e "set:"|grep -i compress
+	set hive.exec.compress.output;
+	set io.compression.codec;
+	set mapreduce.output.fileoutputformat.compress.codec = orge.apache.hadoop.io.compress.SnappyCodec
+
+=====================================================
+Different way of executing hive commands:
+hive /// this will launch hive shell for R&D
+hive -e "query";
+hive -f file_name ///this  will conatinf the set of hive coommands.
+===========================
+bucketing: ( same hash partition in mysql or oracle)
+1. It more efficeint than partition while reading data from it.
+2. Stores the data in evenily distributed if columns are like 'id'
+3. Loding data using LOAD in the bucketed table may cause data incossitaence. hence prefer to laod data from another hive table using INSERT.
+
+create table order_bucketed (
+	order_id string,
+	order_date string,
+	order_customer_id int,
+	order_status varchar(45)
+)
+CLUSTERED BY (order_id) INTO 16 BUCKETS
+ROW FORMAT DELIMITED
+FIELD TERMITTED BY '|'
+STORED AS TEXTFILE;
+
+to check wheather buckting is enabled on the setup or not:
+set hive.enforce.bucketing; ==> to check
+set hive.enforce.bucketing=true;  ==> to set 
+
+to check th hive pocessing engine:  set hive.execution.engine;
+
+===============================
+sometime we get issue while creating external table on the existing data present in the hdfc because of metastore is not in sync then use below command:
+
+msck repair table table_name; 
+
+==============================================
+Hive Sql:
+
+1. We have to use join for joining the data, we cann't use where clause for joining the multiple columns.
+2. To check the list of predefined fuctions: show functions;
+	to the defination of the fuctions: describe function function_name;
+	
+	select substr(column_name, start_inde, len); example select substr("2013-07-02", 6, 2); ==this will print the month.
+	select current_date;
+	select current_timestamp;
+	select add_months(current_timestamp,3);
+	select year(current_timestamp);
+	select month(current_timestamp);
+	select day(current_timestamp);
+	select date_format(current_date, 'dd, MM YYYY');
+	select date_format(current_date, 'dd, MMM YYYY');
+	select date_format(current_date, 'dd, MMMM YYYY');
+	select unix_timestamp(current_date);--this will provide the numeric value for date.
+	select cast(concat(year(current_date),lpad(month(current_date),2,0)), as int);
+	select from_unixtime(dateunix_timestamp,'YYYY-MM-dd'); this will convert the int timestamp to proper date format.
+	select from instr("apple","l"); give possition of second str in first str.
+	
+3. Group by and order by
+
+select order_item_product_id, sum(order_item_quantity) total_quantity from order_items
+group by order_item_product_id
+having sum(order_item_quantity) >= 10000 //we use both alias as well as sum(order_item_quantity)
+order by total_quantity;
+
+--to get top 5 selling products----
+select * from (select product_name, sum(order_item_quantity) total_quantity from order_items oi join product p
+on oi.order_item_product_id = p.product_id
+group by product_name
+order by total_quantity desc) q limit 10;
+
+-----to see the query plan using explain : This will show you how query will run----
+explain 
+select * from (select product_name, sum(order_item_quantity) total_quantity from order_items oi join products p
+on oi.order_item_product_id = p.product_id
+group by product_name
+order by total_quantity desc) q limit 10;
+
+
+---Windowing funtion----
+rank()
+dense_rank()
+
+examples:
+--this will give top 5 product in each category based on quantity
+select * from (
+selct category_name, product_name, total_quantity,
+dense_rank() over (partition by category_name order by total_quantity desc) rnk
+from(
+select category_name, product_name, sum(order_item_quantity) total_quantity from order_items oi join products p
+on oi.order_item_product_id = p.product_id
+join categories c
+on c.category_id = p.product_category_id
+group by category_name, product_name) q) q1
+where rnk <= 5;
+
+
+--this will give top 5  record on quantity . 
+select * from (
+selct category_name, product_name, total_quantity,
+dense_rank() over (partition by 1 order by total_quantity desc) rnk ///global dense ranking
+from(
+select category_name, product_name, sum(order_item_quantity) total_quantity from order_items oi join products p
+on oi.order_item_product_id = p.product_id
+join categories c
+on c.category_id = p.product_category_id
+group by category_name, product_name) q) q1
+where rnk <= 5;
+
+--------order by vs sort by in hive-----------------
+order by: this consider the whole data as one single data and try to order them. Also caled as Global sorting. Due to even if i have 4 reducer , this sorting will consider only 1 during the sort and then underutilization of resurce and also may cause performance issues:
+
+sort by : it will devide the data in to nuber of reducers and then sort them. It will use all the reducer and hence hence reduce the query computation time.
+ sort by used with distributed by to get the corrrect ordering of data in case of multiple columns sorting. If we do not use distributed by then sort by will the data considerign multiple keys/columns as whole hence output may not be in proper order. To avoid this we use distributed by along with sort by.
+ 
+ syntex: DISTRIBUTED BY columns sort by columns.
+ 
+
+Note: If the number of columns in DISTRIBUTED and SORT by clause are then then we can directly use: CLUSTER BY
+
+In hive bydefault join happens during map process. If you want to dissable this make the query to run during reducer process then set following:
+
+set hive.auto.convert.join=false;///(bedefault it will be true).
+
+We have to do this, because during the map process fetch the in RAM then process it.
+
