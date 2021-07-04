@@ -1,4 +1,4 @@
-Basic Transformation:
+===========================================Basic Transformation:======================================================
 
 set some properties: (add in the .bachrc file)
 export SPARK_MAJOR_VERSION = 2
@@ -166,3 +166,143 @@ executions:
  --num-executers 1 \
  src/main/python/retail_db/df/DailyProductRevenue DailyProductRevenue.py prod 
        
+
+
+
+===============================================================================================================================================================================
+===============================================================================================================================================================================
+===========================================Analytics Functions or Windowing Functions:======================================================
+
+from spark.sql.window import Window
+
+spec = Window.partitionBy(orderItems.order_item_order_id)
+type(spec)
+
+orderItems.select('order_item_order_id','order_item_subtotal','order_item_product_id',round(orderItems.order_item_subtotal/sum(orderItemsorder_item_subtotal).over(spec),2).alias('order_evenue')).show()
+
+orderItems.withcolumn('order_revenue', sum('order_item_subtotal').over(spec)). \
+           withcolumn('order_avg_revenue', avg('order_item_subtotal').over(spec)).show()
+
+lead : It will return the next lower value as compare to current value and if not found then it will return null
+leag : It will return the next hightest value as compare to current value and if not found then it will return null
+
+spec2 = Window.partitionBy('order_item_order_id').orderBy(orderItems.order_item_subtotal.desc())
+
+
+leadOrderItems = orderItems.withcolumn('next_order_item_revenue', lead('order_item_subtotal').over(spec)). \
+                 orderBy('order_item_order_id', orderItems.order_item_subtotal.desc()).\
+                 drop('order_item_product_id','order_item_quantity','order_item_product_price')
+
+leadOrderItems.withColumn('revenue_diff',leadOrderItems.order_item_subtotal - leadOrderItems.next_order_item_revenue)          
+
+
+----Get the top N product program-------
+
+
+=================main/resources/application.properties================
+[dev]
+executionMode = local
+input.base.dir = /User/itversity/Research/data/retail_db
+output.base.dir = /User/itversity/Research/data/bootcamp/pyspark
+
+[prod]
+executionMode = yarn-client
+input.base.dir = /public/retail_db
+output.base.dir = /user/training/bootcamp/pyspark
+
+-----main/python/DailyProductRevenue.py-----
+from pyspark.sql import SparkSession
+import ConfigParser as cp
+import sys
+
+props = cp.RawConfigParser()
+props.read("src/main/resources/application.properties")
+env = sys.argv[1]
+
+spark = SparkSession. \
+        builder. \
+        master(props.get(env,'executionMode')). \
+        appName('Daily Product Revenue').\
+        getOrCreate()
+ 
+inputBaseDir = props.get(env,'input.base.dir')
+outputBaseDir = props.get(env,'output.base.dir')
+ 
+ordersCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/orders'). \
+         toDF('order_id','order_date','order_customer_id','order_status')
+
+ordersItemsCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/order_items'). \
+         toDF('order_item_id','order_item_order_id','order_item_product_id','order_item_quantity','order_item_subtotal','order_item_product_price')
+ 
+from pyspark.sql.types import IntegerType, FloatType
+orders =  ordersCSV. \
+            withColumn('order_id',ordersCSV.order_id.cast(IntegerType())). \
+            withColumn('order_customer_id',ordersCSV.order_id.cast(IntegerType()))
+
+ordersItems =  ordersItemsCSV. \
+            withColumn('order_item_id',ordersItemsCSV.order_item_id.cast(IntegerType())). \
+            withColumn('order_item_order_id',ordersItemsCSV.order_item_order_id.cast(IntegerType())). \
+            withColumn('order_item_product_id',ordersItemsCSV.order_item_product_id.cast(IntegerType())). \
+            withColumn('order_item_quantity',ordersItemsCSV.order_item_quantity.cast(IntegerType())). \
+            withColumn('order_item_subtotal',ordersItemsCSV.order_item_subtotal.cast(FloatType())). \
+            withColumn('order_item_product_price',ordersItemsCSV.order_item_product_price.cast(FloatType()))
+            
+#orderItems.printSchema()
+#orderItesm.show()
+
+spark.conf.set('spark.sql.shuffle.partitions','2')
+from pyspar.sql.functions import sum, round
+
+dailyProductRevenue = orders.where("order_staus in ('COMPLETED','CLOSED')"). \
+                      join(orderItems, orders.order_id == orderItems.order_item_order_id). \
+                      groupBy(orders.order_date, orderItems.order_item_order_id).agg(round(sum("order_item_subtotal"),2).alias('revenue'))
+       
+from pyspar.sql.functions import rank
+from spark.sql.window import Window
+
+spec = Window.partitionBy(dailyProductRevenue.order_date).orderBy(dailyProductRevenue.revenue.desc())
+dailyProductRevenueRanked = dailyProductRevenue.withColumn('rnk', rank().over(spec))
+
+topN = int(sys.argv[2])
+topNDailyProducts =  dailyProductRevenueRanked. \
+                     where(dailyProductRevenueRanked.rnk <= topN). \
+                     orderBy(dailyProductRevenueRanked.order_date, dailyProductRevenueRanked.revenue.desc()). \
+                     drop('rnk')
+                     
+                     
+
+
+topNDailyProducts.write.csv(outputBaseDir + "/topn_daily_products")
+
+
+==================
+executions:
+
+ spark-submit --mstar yarn \
+ --deploy-mode client \
+ --conf spark.ui.port=12901 \
+ --num-executers 1 \
+ src/main/python/retail_db/df/DailyProductRevenue DailyProductRevenue.py prod 5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
