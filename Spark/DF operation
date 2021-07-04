@@ -1,0 +1,168 @@
+Basic Transformation:
+
+set some properties: (add in the .bachrc file)
+export SPARK_MAJOR_VERSION = 2
+export PYSPARK_PYTHON=python3.6
+
+start pyspark:
+
+pyspark --master yarn --conf pyspark.ui.port=2901
+
+===============================================================================
+create dataframe:
+
+ordersCSV = spark. \
+         read. \
+         csv('/public/retailr_db/orders'). \
+         toDF('order_id','order_date','order_customer_id','order_status')
+ 
+ from pyspark.sql.types import IntegerType, FloatType
+ orders =  ordersCSV. \
+            withColumn('order_id',ordersCSV.order_id.cast(IntegerType())). \
+            withColumn('order_customer_id',ordersCSV.order_id.cast(IntegerType()))
+
+orders.printSchema()
+orders.show()
+
+====Projecting data=========
+         
+--select----
+to get help on df 
+
+help(orders.select)
+---select takes column name as string or columns
+orders.select('order_id','order_date').show() //passig as string
+orders.select(orders.order_id,orders.order_date).show() //passing as column
+
+from pyspar.sql.functions import *
+orders.select(orders.order_id,orders.order_date, date_format(orders.order_date,"YYYYMM").alias('order_month')).show()
+
+---with cloumn--
+withcolumn function provide exsting column along with new column. if the new column name is same existing column name then it will transformed data in the exsting column.
+
+order.withColumn('order_month', date_format(orders.order_date,"YYYYMM")).show()
+
+---selectExpr-----
+order.selectExpr('date_format(order_date,"YYYYMM") as order_month').show()
+
+====Filtering data using where or filter =========
+
+orders.where("order_staus = 'COMPLETED'").show()
+orders.where("order_staus in ('COMPLETED','CLOSED')").show()
+orders.where("order_staus in ('COMPLETED','CLOSED') and date_format(order_date,'YYYYMM') = '201308'").show()
+orders.where("order_staus in ('COMPLETED','CLOSED') and order_date like '2013-08%'").show()
+
+orders.where(orders.order_staus == 'COMPLETED').show()
+orders.where(orders.order_staus.isin('COMPLETED','CLOSED')).show()
+orders.where(orders.order_staus.isin('COMPLETED','CLOSED').__and__(date_format(orders.order_date,'YYYYMM') == '201308')).show()
+
+----to get other function: help(orders.order_staus)
+
+orderItems.where("order_item_subtotal != round(order_item_quantity * order_item_product_price, 2)").show()
+orders.where("date_format(order_date,'dd') = '01'").show()
+
+====Join data using where or filter =========
+
+orders.where("order_staus in ('COMPLETED','CLOSED')"). \
+       join(orderItems, orders.order_id == orderItems.order_item_order_id).show()
+
+orders.join(orderItems, orders.order_id = orderItems.order_item_order_id, 'left'). \
+       where(orderItems.order_item_order_id.isNULL()).show()
+       
+orders.count()
+orderItems.show()
+orderItems.filter("order_item_order_id = 2").agg(sum("order_item_subtotal")).show()
+
+orderItems.groupBy("order_item_order_id").agg(round(sum("order_item_subtotal"),2).alias('order_revenue')).show()
+orderItems.groupBy(orderItems.order_item_order_id).agg(round(sum("order_item_subtotal"),2).alias('order_revenue')).show()
+order.groupBy('order_status').agg(count('order_status').alias('status_count')).show()
+
+spark.conf.set('spark.sql.shuffle.partitions','2') ---to specify ..bydefault 200 partion is used.
+
+orders.orderBy('order_status').show()
+orders.orderBy('order_date','order_status').show()
+       
+orderItems.orderBy(orderItems.order_item_order_id, orderItems.order_item_subtotal.desc()).show()       
+
+
+
+
+=================main/resources/application.properties================
+[dev]
+executionMode = local
+input.base.dir = /User/itversity/Research/data/retail_db
+output.base.dir = /User/itversity/Research/data/bootcamp/pyspark
+
+[prod]
+executionMode = yarn-client
+input.base.dir = /public/retail_db
+output.base.dir = /user/training/bootcamp/pyspark
+
+-----main/python/DailyProductRevenue.py-----
+from pyspark.sql import SparkSession
+import ConfigParser as cp
+import sys
+
+props = cp.RawConfigParser()
+props.read("src/main/resources/application.properties")
+env = sys.argv[1]
+
+spark = SparkSession. \
+        builder. \
+        master(props.get(env,'executionMode')). \
+        appName('Daily Product Revenue').\
+        getOrCreate()
+ 
+inputBaseDir = props.get(env,'input.base.dir')
+outputBaseDir = props.get(env,'output.base.dir')
+ 
+ordersCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/orders'). \
+         toDF('order_id','order_date','order_customer_id','order_status')
+
+ordersItemsCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/order_items'). \
+         toDF('order_item_id','order_item_order_id','order_item_product_id','order_item_quantity','order_item_subtotal','order_item_product_price')
+ 
+from pyspark.sql.types import IntegerType, FloatType
+orders =  ordersCSV. \
+            withColumn('order_id',ordersCSV.order_id.cast(IntegerType())). \
+            withColumn('order_customer_id',ordersCSV.order_id.cast(IntegerType()))
+
+ordersItems =  ordersItemsCSV. \
+            withColumn('order_item_id',ordersItemsCSV.order_item_id.cast(IntegerType())). \
+            withColumn('order_item_order_id',ordersItemsCSV.order_item_order_id.cast(IntegerType())). \
+            withColumn('order_item_product_id',ordersItemsCSV.order_item_product_id.cast(IntegerType())). \
+            withColumn('order_item_quantity',ordersItemsCSV.order_item_quantity.cast(IntegerType())). \
+            withColumn('order_item_subtotal',ordersItemsCSV.order_item_subtotal.cast(FloatType())). \
+            withColumn('order_item_product_price',ordersItemsCSV.order_item_product_price.cast(FloatType()))
+            
+#orderItems.printSchema()
+#orderItesm.show()
+
+spark.conf.set('spark.sql.shuffle.partitions','2')
+from pyspar.sql.functions import sum, round
+
+dailyProductRevenue = orders.where("order_staus in ('COMPLETED','CLOSED')"). \
+                      join(orderItems, orders.order_id == orderItems.order_item_order_id). \
+                      groupBy(orders.order_date, orderItems.order_item_order_id).agg(round(sum("order_item_subtotal"),2).alias('revenue'))
+
+dailyProductRevenueSorted = dailyProductRevenue. \
+                            orderBy(dailyProductRevenue.order_date, dailyProductRevenue.revenue.desc())
+       
+#dailyProductRevenueSorted.show()
+
+dailyProductRevenueSorted.write.csv(outputBaseDir + '/daily_product_revenue')
+
+
+==================
+executions:
+
+ spark-submit --mstar yarn \
+ --deploy-mode client \
+ --conf spark.ui.port=12901 \
+ --num-executers 1 \
+ src/main/python/retail_db/df/DailyProductRevenue DailyProductRevenue.py prod 
+       
