@@ -1,1 +1,207 @@
+=======================Basic Transformation====================
+inorder to use run sql we have executed create view o data frame.
+
+order.createOrReplaceTempView('orders')
+orderItems.createOrReplaceTempView('orders_items')
+spark.sql("create database bootcampdemo")
+spark.sql("use bootcampdemo")
+spark.sql("show tables").show()
+spark.sql("select * from orders").show()
+for f in spark.sql("describe formatted orders").collect(): print(f)
+for f in spark.sql("show functions").collect(): print(f)
+for f in spark.sql("describe function substring").collect(): print(f)
+spark.sql('select substring("Hello World", 7, 3)').show()
+spark.read.table('order_hive').show() ## to read data from hive and load them in the DF
+spark.read.table('bootcampdemo.order_hive').show()
+spark.write.saveAsTable('order_hive').show() ## to read data from hive and load them in the DF
+
+--------------------------------------------------------------------------------------------------------------------
+=================main/resources/application.properties================
+[dev]
+executionMode = local
+input.base.dir = /User/itversity/Research/data/retail_db
+output.base.dir = /User/itversity/Research/data/bootcamp/pyspark
+
+[prod]
+executionMode = yarn-client
+input.base.dir = /public/retail_db
+output.base.dir = /public/training/bootcamp/pyspark
+
+-----main/python/DailyProductRevenue.py-----
+from pyspark.sql import SparkSession
+import ConfigParser as cp
+import sys
+
+props = cp.RawConfigParser()
+props.read("src/main/resources/application.properties")
+env = sys.argv[1]
+
+spark = SparkSession. \
+        builder. \
+        master(props.get(env,'executionMode')). \
+        appName('Daily Product Revenue using Data Frame and Spark SQL').\
+        getOrCreate()
+
+spark.conf.set('spark.sql.shuffle.partitions','2')
+
+inputBaseDir = props.get(env,'input.base.dir')
+outputBaseDir = props.get(env,'output.base.dir')
+ 
+ordersCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/orders'). \
+         toDF('order_id','order_date','order_customer_id','order_status')
+
+ordersItemsCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/order_items'). \
+         toDF('order_item_id','order_item_order_id','order_item_product_id','order_item_quantity','order_item_subtotal','order_item_product_price')
+ 
+from pyspark.sql.types import IntegerType, FloatType
+orders =  ordersCSV. \
+            withColumn('order_id',ordersCSV.order_id.cast(IntegerType())). \
+            withColumn('order_customer_id',ordersCSV.order_id.cast(IntegerType()))
+
+ordersItems =  ordersItemsCSV. \
+            withColumn('order_item_id',ordersItemsCSV.order_item_id.cast(IntegerType())). \
+            withColumn('order_item_order_id',ordersItemsCSV.order_item_order_id.cast(IntegerType())). \
+            withColumn('order_item_product_id',ordersItemsCSV.order_item_product_id.cast(IntegerType())). \
+            withColumn('order_item_quantity',ordersItemsCSV.order_item_quantity.cast(IntegerType())). \
+            withColumn('order_item_subtotal',ordersItemsCSV.order_item_subtotal.cast(FloatType())). \
+            withColumn('order_item_product_price',ordersItemsCSV.order_item_product_price.cast(FloatType()))
+
+
+orders.createOrReplaceTempView('orders')
+orderItems.createOrReplaceTempView('orders_items')
+
+dailyProductRevenue = spark.sql('''select o.order_date, oi.order_item_product_id, round(sum(oi.order_item_subtotal), 2) as revenue
+                                   from orders o, orders_items oi
+                                   on o.order_id = oi.order_item_order_id
+                                   where o.order_status in ("COMPLETED","CLOSED")
+                                   group by o.order_date, oi.order_item_product_id
+                                   order by o.order_date,  revenue desc''')
+                                   
+dailyProductRevenue.write.csv(outputBaseDir + "/daily_product_revenue_sql")
+
+
+==================
+executions:
+
+ spark-submit --mstar yarn \
+ --deploy-mode client \
+ --conf spark.ui.port=12901 \
+ src/main/python/retail_db/df/DailyProductRevenue DailyProductRevenue.py prod
+
+
+========================================================================================================================================================================
+========================================================================================================================================================================
+===========================================Analytical function or Window function============================================================================
+
+spark.sql('''select o.order_item_id, o.order_item_order_id,
+             round((o.order_item_subtotal/sum(o.order_item_subtotal) over (partition by o.order_item_order_id)),2) * 100 subtotal_pct
+             from order_items o).show()''')
+
+spark.sql('''select o.order_item_id, o.order_item_order_id,
+             o.order_item_subtotal, rank() over (partition by o.order_item_order_id order by o.order_item_subtotal desc) rnk
+             from order_items o).show()''')
+
+
+spark.sql('''select o.order_item_id, o.order_item_order_id,
+             o.order_item_subtotal, lead(o.order_item_subtotal) over (partition by o.order_item_order_id order by o.order_item_subtotal desc) rnk
+             from order_items o).show()''')
+
+exeucution order of query:
+from clause
+join and/or where clause
+group by
+having clause
+select clause
+order by 
+
+------------------------------------------------------------------------------------------------------------------------------------
+=================main/resources/application.properties================
+[dev]
+executionMode = local
+input.base.dir = /User/itversity/Research/data/retail_db
+output.base.dir = /User/itversity/Research/data/bootcamp/pyspark
+
+[prod]
+executionMode = yarn-client
+input.base.dir = /public/retail_db
+output.base.dir = /public/training/bootcamp/pyspark
+
+-----main/python/DailyProductRevenue.py-----
+from pyspark.sql import SparkSession
+import ConfigParser as cp
+import sys
+
+props = cp.RawConfigParser()
+props.read("src/main/resources/application.properties")
+env = sys.argv[1]
+
+spark = SparkSession. \
+        builder. \
+        master(props.get(env,'executionMode')). \
+        appName('Daily Product Revenue using Data Frame and Spark SQL').\
+        getOrCreate()
+
+spark.conf.set('spark.sql.shuffle.partitions','2')
+
+inputBaseDir = props.get(env,'input.base.dir')
+outputBaseDir = props.get(env,'output.base.dir')
+ 
+ordersCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/orders'). \
+         toDF('order_id','order_date','order_customer_id','order_status')
+
+ordersItemsCSV = spark. \
+         read. \
+         csv(inputBaseDir + '/order_items'). \
+         toDF('order_item_id','order_item_order_id','order_item_product_id','order_item_quantity','order_item_subtotal','order_item_product_price')
+ 
+from pyspark.sql.types import IntegerType, FloatType
+orders =  ordersCSV. \
+            withColumn('order_id',ordersCSV.order_id.cast(IntegerType())). \
+            withColumn('order_customer_id',ordersCSV.order_id.cast(IntegerType()))
+
+ordersItems =  ordersItemsCSV. \
+            withColumn('order_item_id',ordersItemsCSV.order_item_id.cast(IntegerType())). \
+            withColumn('order_item_order_id',ordersItemsCSV.order_item_order_id.cast(IntegerType())). \
+            withColumn('order_item_product_id',ordersItemsCSV.order_item_product_id.cast(IntegerType())). \
+            withColumn('order_item_quantity',ordersItemsCSV.order_item_quantity.cast(IntegerType())). \
+            withColumn('order_item_subtotal',ordersItemsCSV.order_item_subtotal.cast(FloatType())). \
+            withColumn('order_item_product_price',ordersItemsCSV.order_item_product_price.cast(FloatType()))
+
+
+orders.createOrReplaceTempView('orders')
+orderItems.createOrReplaceTempView('orders_items')
+
+dailyProductRevenue = spark.sql('''select o.order_date, oi.order_item_product_id, round(sum(oi.order_item_subtotal), 2) as revenue
+                                   from orders o, orders_items oi
+                                   on o.order_id = oi.order_item_order_id
+                                   where o.order_status in ("COMPLETED","CLOSED")
+                                   group by o.order_date, oi.order_item_product_id''')
+                                   
+dailyProductRevenue.createOrReplaceTempView('daily_Product_Revenue')
+
+topN = sys.argv[2]
+topNdailyProducts = spark.sql('select * from (select d.* '
+          'rank() over(partition by d.order_date order by revenue desc) rnk'
+          'from daily_Product_Revenue d') q'
+          'where q.rnk <= %s'
+          'order by d.order_date, d.revenue desc' % topN)
+
+topNdailyProducts.write.csv(outputBaseDir + "/topn_daily_products_sql")
+
+
+==================
+executions:
+
+ spark-submit --mstar yarn \
+ --deploy-mode client \
+ --conf spark.ui.port=12901 \
+ src/main/python/retail_db/df/DailyProductRevenue DailyProductRevenue.py prod 3
+ 
+ 
 
