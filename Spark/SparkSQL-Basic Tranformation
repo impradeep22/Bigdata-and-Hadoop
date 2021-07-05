@@ -203,5 +203,23 @@ executions:
  --conf spark.ui.port=12901 \
  src/main/python/retail_db/df/DailyProductRevenue DailyProductRevenue.py prod 3
  
- 
+ ==========================================================================================================================================================================
+ ==========================================================================================================================================================================
+  ==================================================Compression Concepts and algorithms====================================================================
+  
+orders.write.format('csv').option('codec','gzip').save('/users/training/bootcampdemo/pyspark/orders_csv_compressed')
+orders.write.option('codec','gzip').csv('/users/training/bootcampdemo/pyspark/orders_csv_compressed')
+orders.write.option('compression','gzip').json('/users/training/bootcampdemo/pyspark/orders_json_compressed')
+
+spark.conf.set('spark.sql.parquet.compression.codec','gzip')
+orders.write.parquet('/users/training/bootcampdemo/pyspark/orders_parquet_compressed')
+
+pyspark --master yarn --conf spark.ui.port=2901 --package com.databricks:spark-avro_2.11:4.0.0
+spark.conf.set('spark.sql.avro.compression.codec','gzip')
+orders.write.format('com.databricks.spark.avro').save('/users/training/bootcampdemo/pyspark/orders_avro_compressed')
+
+
+
+
+
 
