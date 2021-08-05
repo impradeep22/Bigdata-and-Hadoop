@@ -3,7 +3,7 @@
  3 are master nodes
  3 are gatewaynotes
 2. Spark is nothing but buch of jar files present on each node.
-3. Spart files is present at " cd /usr/hdp/2.5.0.0-1245(gateway note ip and port)/spark ....and in this there ia lib folder
+3. Spart files is present at " cd /usr/hdp/2.5.0.0-1245(gateway note ip and port)/spark ....and in this there is lib folder
 4. clusture configuration is present at : cd /etc/spark2/conf
       spark-env.sh contains:  executer instance, executer memory etc.
       spark-defaults.conf
